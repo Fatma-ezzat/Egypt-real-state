@@ -2,4 +2,4 @@
 URL real state prediction
 
 
-https://egypt-real-state-gzwyrrsybe6evtfpn6rrg5.streamlit.app/
+https://egypt-real-state-y4pnwyelvbo7jqgmdan3cd.streamlit.app/
