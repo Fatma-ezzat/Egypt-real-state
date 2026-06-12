@@ -6,14 +6,12 @@ import numpy as np
 # 1. Page Configuration & Luxury Branding
 st.set_page_config(page_title="Egypt Real Estate Intelligence", layout="wide")
 
-# Professional CSS for the Prediction Card
 st.markdown("""
     <style>
     .main { background-color: #fcfcfc; }
     [data-testid="stMetricValue"] { color: #d4af37; font-weight: bold; }
     h1 { color: #1a2a6c; border-bottom: 3px solid #d4af37; padding-bottom: 10px; }
     
-    /* Prediction Card Styling */
     .predict-card {
         background-color: #1a2a6c;
         padding: 30px;
@@ -43,37 +41,52 @@ data = {
     'District': ['New Cairo', 'Sheikh Zayed', 'New Capital', 'Mostakbal City', 'North Coast', 'October City'],
     'Avg_PSQM': [55000, 52000, 42000, 38000, 95000, 28000],
     'Appreciation': [0.28, 0.25, 0.32, 0.30, 0.40, 0.20],
-    'Maintenance': [2500, 2000, 3000, 2200, 6000, 1800] # Annual EGP per SQM
+    'Maintenance': [2500, 2000, 3000, 2200, 6000, 1800] 
 }
 df = pd.DataFrame(data)
 
 # 3. Sidebar - Advisor Portal
 st.sidebar.title("🏢 Advisor Portal")
 st.sidebar.markdown("---")
-budget = st.sidebar.number_input("Client Investment Budget (EGP)", 1000000, 100000000, 5000000)
-years = st.sidebar.slider("Investment Horizon (Years)", 1, 10, 5)
+
+# NEW INPUTS
+budget = st.sidebar.number_input("Client Maximum Budget (EGP)", 1000000, 100000000, 5000000)
+apt_size = st.sidebar.slider("Desired Apartment Size (SQM)", 50, 500, 150)
 selected_district = st.sidebar.selectbox("Select Target District", df['District'].unique())
+years = st.sidebar.slider("Investment Horizon (Years)", 1, 10, 5)
 
 # --- CALCULATIONS ---
 row = df[df['District'] == selected_district].iloc[0]
-sqm_purchased = budget / row['Avg_PSQM']
+
+# Calculate Current Purchase Price
+total_purchase_price = apt_size * row['Avg_PSQM']
+
+# Financial Projections
 future_price_psqm = row['Avg_PSQM'] * ((1 + row['Appreciation']) ** years)
-final_valuation = sqm_purchased * future_price_psqm
-total_expenses = budget + (row['Maintenance'] * sqm_purchased * years)
-net_profit = final_valuation - total_expenses
+final_valuation = apt_size * future_price_psqm
+total_maintenance = row['Maintenance'] * apt_size * years
+total_cost_basis = total_purchase_price + total_maintenance
+net_profit = final_valuation - total_cost_basis
 
 # --- MAIN DASHBOARD ---
 st.title("🏛️ Egypt Real Estate Intelligence")
-st.markdown(f"**Senior Advisor:** Fatma Ezzat | **Market Cycle:** 2024-2025 Update")
+st.markdown(f"**Senior Advisor:** Fatma Ezzat | **Market Update:** 2024-2025")
 
-# --- NEW: PREDICTION CARD ---
+# BUDGET VALIDATION WARNING
+if total_purchase_price > budget:
+    st.error(f"⚠️ **Budget Alert:** A {apt_size} SQM apartment in {selected_district} costs **EGP {total_purchase_price:,.0f}**, which exceeds your client's budget by **EGP {total_purchase_price - budget:,.0f}**.")
+else:
+    st.success(f"✅ **Budget Match:** This {apt_size} SQM property fits within the client's EGP {budget:,.0f} budget.")
+
+# --- PREDICTION CARD ---
 st.markdown(f"""
     <div class="predict-card">
-        <div class="predict-label">Future Market Valuation Prediction</div>
+        <div class="predict-label">Estimated Future Valuation ({years} Years)</div>
         <div class="predict-value">EGP {final_valuation:,.0f}</div>
-        <div style="font-size: 18px;">Target Asset: {sqm_purchased:.1f} SQM in {selected_district}</div>
+        <div style="font-size: 18px;">Target Asset: {apt_size} SQM in {selected_district}</div>
+        <div style="font-size: 14px; opacity: 0.8;">Current Purchase Price: EGP {total_purchase_price:,.0f}</div>
         <div style="margin-top: 10px; color: #27ae60; font-weight: bold;">
-            ↑ Expected Net Profit: EGP {net_profit:,.0f}
+            ↑ Projected Net Profit: EGP {net_profit:,.0f}
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -82,14 +95,13 @@ st.markdown(f"""
 col1, col2 = st.columns([2, 1])
 
 with col1:
-    # GRAPH 1: LINEAR TREND (Profit vs Cost)
-    st.subheader("📈 Wealth Creation Projection")
+    st.subheader("📈 Portfolio Growth Projection")
     timeline = []
     for y in range(years + 1):
-        cost = budget + (row['Maintenance'] * sqm_purchased * y)
-        val = budget * ((1 + row['Appreciation']) ** y)
-        timeline.append({'Year': y, 'Type': 'Cost Basis (Initial + Maint.)', 'Value': cost})
-        timeline.append({'Year': y, 'Type': 'Market Value (Portfolio)', 'Value': val})
+        cost = total_purchase_price + (row['Maintenance'] * apt_size * y)
+        val = total_purchase_price * ((1 + row['Appreciation']) ** y)
+        timeline.append({'Year': y, 'Type': 'Total Investment (Cost)', 'Value': cost})
+        timeline.append({'Year': y, 'Type': 'Market Value (Profit)', 'Value': val})
     
     df_time = pd.DataFrame(timeline)
     line_chart = alt.Chart(df_time).mark_line(point=True).encode(
@@ -101,10 +113,9 @@ with col1:
     st.altair_chart(line_chart, use_container_width=True)
 
 with col2:
-    # GRAPH 2: YoY GROWTH COMPARISON
-    st.subheader("📊 Regional Growth Rates")
+    st.subheader("📊 Price per SQM Comparison")
     bar_chart = alt.Chart(df).mark_bar().encode(
-        x=alt.X('Appreciation:Q', axis=alt.Axis(format='%'), title="Annual Gain"),
+        x=alt.X('Avg_PSQM:Q', title="EGP per SQM"),
         y=alt.Y('District:N', sort='-x', title=""),
         color=alt.condition(
             alt.datum.District == selected_district,
@@ -115,18 +126,14 @@ with col2:
 
 st.markdown("---")
 
-# Row 3: Investment Insights
-st.subheader("💡 Strategic Insights")
+# Row 3: Metrics
 c1, c2, c3 = st.columns(3)
 with c1:
-    st.metric("Avg Entry Price", f"{row['Avg_PSQM']:,.0f} EGP/sqm")
+    st.metric("Total Purchase Price", f"{total_purchase_price:,.0f} EGP")
 with c2:
-    st.metric("Annual Growth", f"{row['Appreciation']*100}%")
+    st.metric("Price per SQM", f"{row['Avg_PSQM']:,.0f} EGP")
 with c3:
-    st.metric("ROI Efficiency", f"{(net_profit/budget)*100:.1f}%")
+    st.metric("Total ROI Efficiency", f"{(net_profit/total_purchase_price)*100:.1f}%")
 
-st.info(f"**Advisor Recommendation:** Investing in {selected_district} provides a strong hedge against inflation. "
-        f"The 'Green Gap' in the trend chart shows that by year {years}, your asset value significantly exceeds your cost basis.")
-
-# Data Table
-st.dataframe(df.style.format({'Appreciation': '{:.0%}', 'Avg_PSQM': '{:,.0f} EGP'}))
+st.info(f"**Advisor Recommendation:** A {apt_size} SQM unit in {selected_district} is a strong asset. "
+        f"By Year {years}, the market value is projected to be {final_valuation/total_purchase_price:.1f}x the initial cost.")
